@@ -1,24 +1,26 @@
+#include <QApplication>
+#include <QFileDialog>
+#include <QLabel>
+#include <QVBoxLayout>
+#include <QWidget>
+#include <QMessageBox>
+#include <QImage>
+#include <QPixmap>
+#include <QDir>
+
 #include <gdcmImageReader.h>
-#include <gdcmReader.h>
+#include <gdcmImage.h>
 #include <gdcmFile.h>
 #include <gdcmDataSet.h>
 #include <gdcmTag.h>
 #include <gdcmDataElement.h>
 #include <gdcmByteValue.h>
-#include <gdcmAttribute.h>
 
-#include <QApplication>
-#include <QFileDialog>
-#include <QLabel>
-#include <QPixmap>
-#include <QVBoxLayout>
-#include <QWidget>
-#include <QMessageBox>
-
-#include <iostream>
-#include <string>
 #include <vector>
-#include <array>
+#include <string>
+#include <algorithm>
+#include <cstdint>
+#include <cmath>
 
 static bool TryGetDSString(const gdcm::DataSet& ds, uint16_t g, uint16_t e, std::string& out)
 {
@@ -52,10 +54,10 @@ static QImage DicomToQImage_Grayscale(const gdcm::ImageReader& ir)
     const gdcm::File& file = ir.GetFile();
     const gdcm::DataSet& ds = file.GetDataSet();
 
-    std::array<const unsigned int*, 3> dims;
-    dims.fill(img.GetDimensions());
-    const int w = static_cast<int>(*dims[0]);
-    const int h = static_cast<int>(*dims[1]);
+    unsigned int dims[3] = {0,0,0};
+    img.GetDimensions(dims);
+    const int w = static_cast<int>(dims[0]);
+    const int h = static_cast<int>(dims[1]);
 
     const size_t len = img.GetBufferLength();
     std::vector<char> buffer(len);
@@ -64,7 +66,7 @@ static QImage DicomToQImage_Grayscale(const gdcm::ImageReader& ir)
 
     const auto pf = img.GetPixelFormat();
     const int bitsAllocated = pf.GetBitsAllocated();
-    const bool isSigned = pf.GetPixelRepresentation() == gdcm::PixelFormat::INT16;
+    const bool isSigned = pf.GetPixelRepresentation() == gdcm::PixelFormat::INT;
     const int samplesPerPixel = pf.GetSamplesPerPixel(); // geralmente 1 em grayscale
 
     if (samplesPerPixel != 1) {
@@ -168,7 +170,7 @@ static QImage DicomToQImage_Grayscale(const gdcm::ImageReader& ir)
     return out;
 }
 
-int main(int argc, char** argv)
+int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
