@@ -1,13 +1,9 @@
-#include <QApplication>
-#include <QFileDialog>
-#include <QLabel>
-#include <QVBoxLayout>
-#include <QWidget>
-#include <QMessageBox>
-#include <QImage>
-#include <QPixmap>
-#include <QDir>
+//
+// Created by dev on 26/02/2026.
+//
 
+#ifndef READ_DICOM_GDCM_DICOM_LIB_H
+#define READ_DICOM_GDCM_DICOM_LIB_H
 #include <gdcmImageReader.h>
 #include <gdcmImage.h>
 #include <gdcmFile.h>
@@ -15,22 +11,20 @@
 #include <gdcmTag.h>
 #include <gdcmDataElement.h>
 #include <gdcmByteValue.h>
+#include <gdcmAttribute.h>
 
-#include <vector>
-#include <string>
-#include <algorithm>
-#include <cstdint>
-#include <cmath>
-
+#include <QImage>
+// -------------------- helpers DICOM tags --------------------
 static bool TryGetDSString(const gdcm::DataSet& ds, uint16_t g, uint16_t e, std::string& out)
 {
     gdcm::Tag tag(g, e);
     if (!ds.FindDataElement(tag)) return false;
+
     const gdcm::DataElement& de = ds.GetDataElement(tag);
     const gdcm::ByteValue* bv = de.GetByteValue();
     if (!bv) return false;
+
     out.assign(bv->GetPointer(), bv->GetLength());
-    // limpa \0 e espaços no fim (comum em DICOM)
     while (!out.empty() && (out.back() == '\0' || out.back() == ' ' || out.back() == '\r' || out.back() == '\n'))
         out.pop_back();
     return true;
@@ -42,22 +36,20 @@ static bool ParseDouble(const std::string& s, double& v)
         size_t idx = 0;
         v = std::stod(s, &idx);
         return idx > 0;
-    } catch (...) {
-        return false;
-    }
+    } catch (...) { return false; }
 }
 
-// Converte pixels (grayscale 16-bit/8-bit) para QImage 8-bit (Format_Grayscale8)
-static QImage DicomToQImage_Grayscale(const gdcm::ImageReader& ir)
+// -------------------- DICOM -> QImage (Grayscale8) --------------------
+static QImage DicomToQImage_Grayscale8(gdcm::ImageReader& ir)
 {
     const gdcm::Image& img = ir.GetImage();
     const gdcm::File& file = ir.GetFile();
     const gdcm::DataSet& ds = file.GetDataSet();
 
-    unsigned int dims[3] = {0,0,0};
-    img.GetDimensions(dims);
-    const int w = static_cast<int>(dims[0]);
-    const int h = static_cast<int>(dims[1]);
+    std::array<const unsigned int*,3> dims;
+    dims.fill(img.GetDimensions());
+    const int w = static_cast<int>(*dims[0]);
+    const int h = static_cast<int>(*dims[1]);
 
     const size_t len = img.GetBufferLength();
     std::vector<char> buffer(len);
@@ -66,28 +58,30 @@ static QImage DicomToQImage_Grayscale(const gdcm::ImageReader& ir)
 
     const auto pf = img.GetPixelFormat();
     const int bitsAllocated = pf.GetBitsAllocated();
-    const bool isSigned = pf.GetPixelRepresentation() == gdcm::PixelFormat::INT;
-    const int samplesPerPixel = pf.GetSamplesPerPixel(); // geralmente 1 em grayscale
+    const bool isSigned = pf.GetPixelRepresentation() == gdcm::PixelFormat::INT64;
+    const int samplesPerPixel = pf.GetSamplesPerPixel();
 
     if (samplesPerPixel != 1) {
-        // Este exemplo foca em grayscale; RGB fica no próximo bloco/nota.
+        // Este exemplo foca em grayscale (1 canal)
+        return QImage();
+    }
+    if (!(bitsAllocated == 8 || bitsAllocated == 16)) {
         return QImage();
     }
 
-    // Pega Window Center/Width (0028,1050) / (0028,1051) se existir
+    // Window Center/Width (0028,1050)/(0028,1051)
     double wc = 0.0, ww = 0.0;
     bool hasWL = false;
     {
         std::string sWC, sWW;
-        // tags podem vir com múltiplos valores "40\40" — pegamos o primeiro
         if (TryGetDSString(ds, 0x0028, 0x1050, sWC) && TryGetDSString(ds, 0x0028, 0x1051, sWW)) {
-            auto cutFirst = [](std::string x){
+            auto first = [](std::string x){
                 auto p = x.find('\\');
                 if (p != std::string::npos) x = x.substr(0, p);
                 return x;
             };
-            sWC = cutFirst(sWC);
-            sWW = cutFirst(sWW);
+            sWC = first(sWC);
+            sWW = first(sWW);
 
             double tWC=0, tWW=0;
             if (ParseDouble(sWC, tWC) && ParseDouble(sWW, tWW) && tWW > 1e-9) {
@@ -102,9 +96,7 @@ static QImage DicomToQImage_Grayscale(const gdcm::ImageReader& ir)
 
     auto clamp255 = [](int x){ return static_cast<uchar>(std::max(0, std::min(255, x))); };
 
-    // Função de mapeamento WL (DICOM padrão: nível/contraste)
     auto mapWL = [&](double p)->uchar {
-        // janela: [wc-ww/2, wc+ww/2]
         const double low  = wc - ww / 2.0;
         const double high = wc + ww / 2.0;
         if (p <= low) return 0;
@@ -113,28 +105,24 @@ static QImage DicomToQImage_Grayscale(const gdcm::ImageReader& ir)
         return clamp255(static_cast<int>(std::lround(t * 255.0)));
     };
 
-    // Se não tiver WL, usamos min/max dos pixels para normalizar
-    double minV = 0, maxV = 0;
+    double minV = 0.0, maxV = 0.0;
     if (!hasWL) {
-        minV =  1e300;
-        maxV = -1e300;
-        auto updateMinMax = [&](double v){ minV = std::min(minV, v); maxV = std::max(maxV, v); };
+        minV =  1e300; maxV = -1e300;
+        auto upd = [&](double v){ minV = std::min(minV, v); maxV = std::max(maxV, v); };
 
         if (bitsAllocated == 8) {
             const uint8_t* px = reinterpret_cast<const uint8_t*>(buffer.data());
-            for (int i = 0; i < w*h; ++i) updateMinMax(px[i]);
-        } else if (bitsAllocated == 16) {
+            for (int i=0;i<w*h;++i) upd(px[i]);
+        } else {
             if (isSigned) {
                 const int16_t* px = reinterpret_cast<const int16_t*>(buffer.data());
-                for (int i = 0; i < w*h; ++i) updateMinMax(px[i]);
+                for (int i=0;i<w*h;++i) upd(px[i]);
             } else {
                 const uint16_t* px = reinterpret_cast<const uint16_t*>(buffer.data());
-                for (int i = 0; i < w*h; ++i) updateMinMax(px[i]);
+                for (int i=0;i<w*h;++i) upd(px[i]);
             }
-        } else {
-            return QImage();
         }
-        if (!(maxV > minV)) { maxV = minV + 1.0; }
+        if (!(maxV > minV)) maxV = minV + 1.0;
     }
 
     auto mapMinMax = [&](double p)->uchar {
@@ -142,16 +130,16 @@ static QImage DicomToQImage_Grayscale(const gdcm::ImageReader& ir)
         return clamp255(static_cast<int>(std::lround(t * 255.0)));
     };
 
-    for (int y = 0; y < h; ++y) {
+    for (int y=0;y<h;++y) {
         uchar* row = out.scanLine(y);
-        for (int x = 0; x < w; ++x) {
+        for (int x=0;x<w;++x) {
             const int idx = y*w + x;
             double p = 0.0;
 
             if (bitsAllocated == 8) {
                 const uint8_t* px = reinterpret_cast<const uint8_t*>(buffer.data());
                 p = px[idx];
-            } else if (bitsAllocated == 16) {
+            } else {
                 if (isSigned) {
                     const int16_t* px = reinterpret_cast<const int16_t*>(buffer.data());
                     p = px[idx];
@@ -159,8 +147,6 @@ static QImage DicomToQImage_Grayscale(const gdcm::ImageReader& ir)
                     const uint16_t* px = reinterpret_cast<const uint16_t*>(buffer.data());
                     p = px[idx];
                 }
-            } else {
-                return QImage();
             }
 
             row[x] = hasWL ? mapWL(p) : mapMinMax(p);
@@ -170,50 +156,16 @@ static QImage DicomToQImage_Grayscale(const gdcm::ImageReader& ir)
     return out;
 }
 
-int main(int argc, char *argv[])
+
+static std::string GetStringTag(const gdcm::DataSet& ds, uint16_t group, uint16_t element)
 {
-    QApplication app(argc, argv);
+    gdcm::Tag tag(group, element);
+    if (!ds.FindDataElement(tag)) return "";
 
-    QWidget window;
-    window.setWindowTitle("DICOM Viewer (Qt + GDCM)");
+    const gdcm::DataElement& de = ds.GetDataElement(tag);
+    const gdcm::ByteValue* bv = de.GetByteValue();
+    if (!bv) return "";
 
-    auto* layout = new QVBoxLayout(&window);
-
-    auto* imageLabel = new QLabel("Use o diálogo para abrir um DICOM (.dcm)");
-    imageLabel->setAlignment(Qt::AlignCenter);
-    imageLabel->setMinimumSize(800, 600);
-    imageLabel->setScaledContents(false);
-    layout->addWidget(imageLabel);
-
-    // Abre o seletor já no início (você pode trocar por botão depois)
-    const QString file = QFileDialog::getOpenFileName(
-        nullptr,
-        "Selecione um arquivo DICOM",
-        QDir::homePath(),
-        "DICOM (*.dcm *.dicom *);;Todos (*)"
-    );
-
-    if (file.isEmpty()) return 0;
-
-    gdcm::ImageReader ir;
-    ir.SetFileName(file.toStdString().c_str());
-    if (!ir.Read()) {
-        QMessageBox::critical(nullptr, "Erro", "Falha ao ler o arquivo DICOM.");
-        return 1;
-    }
-
-    QImage img = DicomToQImage_Grayscale(ir);
-    if (img.isNull()) {
-        QMessageBox::critical(nullptr, "Erro",
-                              "Não consegui converter a imagem.\n"
-                              "Este exemplo suporta principalmente DICOM grayscale (1 canal) em 8/16 bits.");
-        return 2;
-    }
-
-    // Ajusta para caber no label preservando aspecto
-    QPixmap px = QPixmap::fromImage(img);
-    imageLabel->setPixmap(px.scaled(imageLabel->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
-
-    window.show();
-    return app.exec();
+    return std::string(bv->GetPointer(), bv->GetLength());
 }
+#endif //READ_DICOM_GDCM_DICOM_LIB_H

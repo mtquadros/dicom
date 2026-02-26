@@ -1,0 +1,3 @@
+/home/dev/Projects/dicom/build/CMakeFiles/read_dicom.dir
+/home/dev/Projects/dicom/build/CMakeFiles/edit_cache.dir
+/home/dev/Projects/dicom/build/CMakeFiles/rebuild_cache.dir
