@@ -17,8 +17,8 @@
 #include <gdcmDataElement.h>
 #include <gdcmByteValue.h>
 #include <gdcmAttribute.h>
-#include "dicom_lib.h"
-#include "DicomViewWidget.h"
+#include <dicom/dicom_lib.h>
+#include <dicom/DicomViewWidget.h>
 
 #include <vector>
 #include <string>
@@ -63,7 +63,10 @@ int main(int argc, char *argv[])
     metadata.append(GetStringTag(ds, 0x0008, 0x0060));
     metadata.append("\n");
     metadata.append("StudyDate:   ");
-    metadata.append(GetStringTag(ds, 0x0008, 0x0020));
+    std::string date = GetStringTag(ds, 0x0008, 0x0020);
+    date.insert(4,"/");
+    date.insert(7,"/");
+    metadata.append(date);
     metadata.append("\n");
     metadata.append("SeriesDesc:  ");
     metadata.append(GetStringTag(ds, 0x0008, 0x103E));

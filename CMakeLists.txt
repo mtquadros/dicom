@@ -8,8 +8,8 @@ find_package(GDCM REQUIRED)
 find_package(Qt5 REQUIRED COMPONENTS Widgets)
 
 
-add_executable(read_dicom read_dicom.cpp
-        DicomViewWidget.h
-        dicom_lib.h)
+add_executable(read_dicom read_dicom.cpp)
+
 target_link_libraries(read_dicom PRIVATE gdcmMSFF)
 target_link_libraries(read_dicom PRIVATE Qt5::Widgets)
+include_directories(include)

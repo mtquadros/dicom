@@ -48,7 +48,7 @@ build CMakeFiles/read_dicom.dir/read_dicom.cpp.o: CXX_COMPILER__read_dicom_unsca
   DEFINES = -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB
   DEP_FILE = CMakeFiles/read_dicom.dir/read_dicom.cpp.o.d
   FLAGS = -std=gnu++17 -fPIC
-  INCLUDES = -isystem /usr/include/gdcm-3.0 -isystem /usr/include/x86_64-linux-gnu/qt5 -isystem /usr/include/x86_64-linux-gnu/qt5/QtWidgets -isystem /usr/include/x86_64-linux-gnu/qt5/QtGui -isystem /usr/include/x86_64-linux-gnu/qt5/QtCore -isystem /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++
+  INCLUDES = -I/home/dev/Projects/dicom/include -isystem /usr/include/gdcm-3.0 -isystem /usr/include/x86_64-linux-gnu/qt5 -isystem /usr/include/x86_64-linux-gnu/qt5/QtWidgets -isystem /usr/include/x86_64-linux-gnu/qt5/QtGui -isystem /usr/include/x86_64-linux-gnu/qt5/QtCore -isystem /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++
   OBJECT_DIR = CMakeFiles/read_dicom.dir
   OBJECT_FILE_DIR = CMakeFiles/read_dicom.dir
   TARGET_COMPILE_PDB = CMakeFiles/read_dicom.dir/

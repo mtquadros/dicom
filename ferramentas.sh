@@ -3,7 +3,13 @@
 echo "Atualizando sistema..."
 sudo apt update
 
-echo "Instalando gcc..."
+echo "Instalando gcc,g++,make e biblioteca libc6-dev..."
 sudo apt install -y build-essential
+
+echo "Instalando CMAKE..."
+sudo apt install cmake -y
+
+echo "Instalando o ninja..."
+sudo apt install ninja-build -y
 
 echo "Fim da execução."

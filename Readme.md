@@ -1,13 +1,22 @@
+##### Solução
+   A solução é escrita em c++.
+   Após instalar das ferramentas de geração, deve ser gerado o executável dentro da pasta "build".  
 
-#### Instalação das ferramentas para geração do programa executável no sistema ubuntu
-1. Instalar compilador GNU gcc
-   sudo apt install build-essential -y
-2. Instalar CMAKE
-   sudo apt install cmake -y
-3. Instalar Ninja build
-   sudo apt install ninja-build -y
-##### Digite na linha de comando
-1. cmake -G Ninja -S . -B build
-2. cmake --build build
-3. /read_dicom
-Abra o arquivo "anonymized_mamo.dcm" na pasta dicom
+##### Bibliotecas utilizadas:
+- libgdcm-dev
+- libgdcm3.0t64
+- qtbase5-dev
+- qtbase5-dev-tools
+- libc6-dev
+
+#### Requisitos para geração do programa executável no sistema ubuntu: Instalação do compilador GNU gcc/g++, CMAKE e Ninja build
+1. Digite na linha de comando para instalar:
+   ./ferramentas.sh
+##### Etapa: Geração do programa executável
+1. Digite a linha de comando para compilar:
+   ./compilar.sh
+##### Etapa: Executar o programa
+1. Digite a linha de comando 
+   ./read_dicom
+Abra o arquivo "anonymized_mamo.dcm" na pasta dicom (na pasta pai da pasta do programa)
+
