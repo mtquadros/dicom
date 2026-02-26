@@ -12,4 +12,7 @@ sudo apt install cmake -y
 echo "Instalando o ninja..."
 sudo apt install ninja-build -y
 
+echo "Instalando o git..."
+sudo apt install git -y
+
 echo "Fim da execução."
