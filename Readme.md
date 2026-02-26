@@ -28,3 +28,4 @@
 2. Abra o arquivo "anonymized_mamo.dcm" na pasta dicom (na pasta pai da pasta do programa)
 
 ### Exemplo de execução
+<img src="exemplo.gif"/>
